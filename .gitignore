@@ -1,0 +1,12 @@
+# 相依套件（npm install 會自動重新產生，不需要放上 GitHub）
+node_modules/
+
+# 本機測試時產生的資料檔案（正式資料應該只存在 Fly.io 的 volume 裡）
+backend/data/
+
+# 環境變數檔（如果之後有建立 .env，裡面可能含密碼，絕對不要上傳）
+.env
+
+# 系統產生的雜檔
+.DS_Store
+Thumbs.db
