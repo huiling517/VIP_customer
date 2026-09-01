@@ -1,0 +1,55 @@
+name: Deploy Backend to Fly.io
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch: {}
+
+concurrency: fly-deploy-group
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出 GitHub 上的程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 flyctl（在 GitHub 的雲端機器上安裝，不是您的電腦）
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: 確認 Fly.io app 存在（第一次執行才會真的建立，之後執行會跳過）
+        working-directory: backend
+        run: flyctl apps create vip-guest-backend --org personal || true
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: 確認持久化磁碟（volume）存在（第一次執行才會真的建立）
+        working-directory: backend
+        run: |
+          if flyctl volumes list --app vip-guest-backend --json | grep -q '"Name": *"vip_data"'; then
+
+            echo "volume 已存在，略過建立"
+          else
+            flyctl volumes create vip_data --region nrt --size 1 --app vip-guest-backend --yes
+          fi
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: 設定管理密碼與允許的前端網址
+        working-directory: backend
+        run: |
+          flyctl secrets set \
+            ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
+            ALLOWED_ORIGIN="${{ secrets.ALLOWED_ORIGIN }}" \
+            --app vip-guest-backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: 部署
+        working-directory: backend
+        run: flyctl deploy --remote-only --app vip-guest-backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
