@@ -1,0 +1,26 @@
+# 這個檔案在執行 `flyctl launch` 時會自動產生類似內容，
+# 這裡先提供範本，之後可以直接用這份，或用 launch 產生的版本再對照修改。
+
+app = "vip-guest-backend"   # 名稱若被別人用掉，flyctl launch 時可以改別的
+primary_region = "nrt"      # nrt = 東京，離台灣近；也可以試 hkg（香港）
+
+[build]
+
+[env]
+  PORT = "8080"
+
+[mounts]
+  source = "vip_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256

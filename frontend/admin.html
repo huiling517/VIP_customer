@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貴賓資料上傳（管理者用）</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto 40px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .system-remark {
+            font-size: 15px;
+            color: #888;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .template-row {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .form-row {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-size: 15px;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        input[type="file"], input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        #uploadButton {
+            background-color: #28a745;
+        }
+
+        #uploadButton:hover {
+            background-color: #1e7e34;
+        }
+
+        #templateButton {
+            background-color: #6c757d;
+        }
+
+        #templateButton:hover {
+            background-color: #545b62;
+        }
+
+        .status {
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        .status.error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .status.success {
+            color: #1e7e34;
+            font-weight: bold;
+        }
+
+        #previewWrapper {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+
+        #previewTable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #previewTable th, #previewTable td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+
+        #previewTable th {
+            background-color: #f2f2f2;
+        }
+
+        #previewTable tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .preview-note {
+            font-size: 14px;
+            color: #888;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>貴賓資料上傳</h1>
+        <p class="system-remark">
+            上傳後會直接更新後端資料庫，「貴賓資料查詢」頁面立即就能查到最新資料，不需要再手動搬檔案。<br>
+            使用方式：① 選擇 Excel 檔（第一列須為欄位名稱）② 輸入管理密碼 ③ 按「上傳並更新資料庫」。
+        </p>
+
+        <div class="template-row">
+            <button id="templateButton" type="button">下載 Excel 格式範本</button>
+            <p class="preview-note">
+                不確定欄位怎麼排可以先下載這份範本參考，依樣填寫即可；範本裡的欄位名稱（姓名、稱謂、單位、職稱、電話、備註1~備註5）
+                只是建議，您可以自由新增、刪除或改名欄位，查詢頁面會自動配合您實際填的欄位運作。
+            </p>
+        </div>
+
+        <div class="form-row">
+            <label for="excelFile">Excel 檔案</label>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        </div>
+
+        <div class="form-row">
+            <label for="adminPassword">管理密碼</label>
+            <input type="password" id="adminPassword" placeholder="請輸入管理密碼" />
+        </div>
+
+        <div class="button-row">
+            <button id="previewButton" type="button">預覽內容</button>
+            <button id="uploadButton" type="button">上傳並更新資料庫</button>
+        </div>
+
+        <div id="statusMessage" class="status"></div>
+
+        <div id="previewWrapper"></div>
+    </div>
+
+    <script>
+        // *** 部署後請把這裡換成您實際的 Fly.io 後端網址 ***
+        const API_BASE_URL = 'https://vip-guest-backend.fly.dev';
+
+        const excelFileInput = document.getElementById('excelFile');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const previewButton = document.getElementById('previewButton');
+        const uploadButton = document.getElementById('uploadButton');
+        const templateButton = document.getElementById('templateButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const previewWrapper = document.getElementById('previewWrapper');
+
+        // 下載 Excel 格式範本
+        templateButton.addEventListener('click', () => {
+            const templateHeaders = ['姓名', '稱謂', '單位', '職稱', '電話', '備註1', '備註2', '備註3', '備註4', '備註5'];
+            const templateExampleRow = ['王小明', '先生', '大興長照機構', '執行長', '0912-345-678', '', '', '', '', '範例資料，請填寫後刪除本列'];
+
+            const worksheetData = [templateHeaders, templateExampleRow];
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '貴賓資料');
+            XLSX.writeFile(workbook, '貴賓資料格式範本.xlsx');
+        });
+
+        function setStatus(text, type) {
+            statusMessage.textContent = text;
+            statusMessage.className = type ? `status ${type}` : 'status';
+        }
+
+        // 純前端預覽，不會送出任何資料，只是先讓管理者確認格式對不對
+        previewButton.addEventListener('click', () => {
+            const file = excelFileInput.files[0];
+            previewWrapper.innerHTML = '';
+            setStatus('', '');
+
+            if (!file) {
+                setStatus('請先選擇 Excel 檔案。', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const workbook = XLSX.read(e.target.result, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const data = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+                    if (!data || data.length === 0) {
+                        setStatus('這個 Excel 檔案讀不到任何資料，請確認第一列是欄位名稱、第二列開始是資料。', 'error');
+                        return;
+                    }
+
+                    renderPreview(data);
+                    setStatus(`讀取到 ${data.length} 筆資料，請確認無誤後輸入密碼並按「上傳並更新資料庫」。`, 'success');
+                } catch (err) {
+                    console.error(err);
+                    setStatus('讀取 Excel 檔案時發生錯誤，請確認檔案格式是否正確（.xlsx / .xls）。', 'error');
+                }
+            };
+            reader.onerror = function () {
+                setStatus('讀取檔案失敗，請重新選擇檔案再試一次。', 'error');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function renderPreview(data) {
+            const columns = Object.keys(data[0]);
+            const table = document.createElement('table');
+            table.id = 'previewTable';
+
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                headerRow.appendChild(th);
+            });
+
+            const tbody = table.createTBody();
+            const previewRows = data.slice(0, 20);
+            previewRows.forEach(rowData => {
+                const row = tbody.insertRow();
+                columns.forEach(col => {
+                    row.insertCell().textContent = rowData[col];
+                });
+            });
+
+            previewWrapper.innerHTML = '';
+            previewWrapper.appendChild(table);
+
+            if (data.length > 20) {
+                const note = document.createElement('p');
+                note.className = 'preview-note';
+                note.textContent = `僅預覽前 20 筆，實際共有 ${data.length} 筆資料，上傳時會送出全部資料。`;
+                previewWrapper.appendChild(note);
+            }
+        }
+
+        // 真正上傳：把原始 Excel 檔案送到後端，後端會自己重新解析一次並覆蓋資料庫
+        uploadButton.addEventListener('click', async () => {
+            const file = excelFileInput.files[0];
+            const password = adminPasswordInput.value;
+
+            if (!file) {
+                setStatus('請先選擇 Excel 檔案。', 'error');
+                return;
+            }
+            if (!password) {
+                setStatus('請輸入管理密碼。', 'error');
+                return;
+            }
+
+            uploadButton.disabled = true;
+            setStatus('上傳中，請稍候...', '');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${API_BASE_URL}/api/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'x-admin-password': password
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || '上傳失敗');
+                }
+
+                setStatus(`上傳成功！已更新 ${result.count} 筆資料，查詢頁面立即生效。`, 'success');
+            } catch (err) {
+                console.error(err);
+                setStatus(`上傳失敗：${err.message}`, 'error');
+            } finally {
+                uploadButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

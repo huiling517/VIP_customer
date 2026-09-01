@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>貴賓資料查詢</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            background-image: url('517.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                background-image: url('703.jpg');
+                background-attachment: scroll;
+            }
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto 0;
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .search-container {
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 10px;
+        }
+
+        #searchInput {
+            flex-grow: 1;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 2px;
+            box-sizing: border-box;
+        }
+
+        #searchButton {
+            padding: 10px 15px;
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+
+        #searchButton:hover {
+            background-color: #0056b3;
+        }
+
+        .system-remark {
+            font-size: 16px;
+            color: #888;
+            text-align: left;
+            margin-top: 15px;
+            margin-bottom: -10px;
+            padding: 5px;
+        }
+
+        .result-count {
+            font-size: 15px;
+            color: #888;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .result-card {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            border: 1px solid #ccc;
+        }
+
+        .result-card th, .result-card td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            word-break: break-word;
+            font-size: 18px;
+        }
+
+        .result-card th {
+            background-color: #f2f2f2;
+            color: #333;
+            white-space: nowrap;
+            width: 30%;
+        }
+
+        .result-card tr:hover {
+            background-color: #e9e9e9;
+        }
+
+        .loading, .error, .no-results {
+            text-align: center;
+            color: #777;
+            margin-top: 20px;
+            font-size: 18px;
+            padding: 10px;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .no-results {
+            color: #555;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            #searchInput {
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            #searchButton {
+                padding: 8px 12px;
+                font-size: 16px;
+            }
+
+            .system-remark {
+                font-size: 14px;
+            }
+
+            .result-count {
+                font-size: 13px;
+                margin-top: 10px;
+                margin-bottom: 6px;
+            }
+
+            .result-card {
+                margin-bottom: 10px;
+            }
+
+            .result-card th, .result-card td {
+                font-size: 13px;
+                padding: 4px 6px;
+                line-height: 1.3;
+            }
+
+            .result-card th {
+                width: 26%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>貴賓資料查詢</h1>
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="輸入關鍵字 (姓名、單位或其他欄位)" />
+            <button id="searchButton">查詢</button>
+        </div>
+        <div id="resultsContainer"></div>
+    </div>
+
+    <script>
+        // *** 部署後請把這裡換成您實際的 Fly.io 後端網址，例如：
+        // const API_BASE_URL = 'https://vip-guest-backend.fly.dev';
+        const API_BASE_URL = 'https://vip-guest-backend.fly.dev';
+
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const resultsContainerDiv = document.getElementById('resultsContainer');
+
+        let data = [];
+        let columns = [];
+
+        async function loadData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/guests`);
+                if (!response.ok) {
+                    throw new Error('無法載入資料');
+                }
+                data = await response.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    columns = Object.keys(data[0]);
+                }
+            } catch (error) {
+                console.error('載入資料時發生錯誤:', error);
+                resultsContainerDiv.innerHTML = `<p class="error">載入資料失敗: ${error.message}（請確認後端服務是否正常運作）</p>`;
+            }
+        }
+
+        function performSearch() {
+            const query = searchInput.value.trim().toLowerCase();
+            resultsContainerDiv.innerHTML = '<p class="loading">查詢中...</p>';
+
+            if (!query) {
+                resultsContainerDiv.innerHTML = '<p class="no-results">請輸入查詢關鍵字。</p>';
+                return;
+            }
+
+            if (columns.length === 0) {
+                resultsContainerDiv.innerHTML = '<p class="error">尚未載入任何資料，請確認後端服務與資料是否存在。</p>';
+                return;
+            }
+
+            const filteredResults = data.filter(row =>
+                columns.some(col => {
+                    const value = row[col];
+                    return value !== undefined && value !== null &&
+                        String(value).toLowerCase().includes(query);
+                })
+            );
+
+            resultsContainerDiv.innerHTML = '';
+
+            if (filteredResults.length > 0) {
+                const countNote = document.createElement('p');
+                countNote.className = 'result-count';
+                countNote.textContent = `共查到 ${filteredResults.length} 筆資料`;
+                resultsContainerDiv.appendChild(countNote);
+
+                // 每一筆貴賓資料都用一張「欄位 : 值」的直式卡片呈現，
+                // 而不是把所有人塞進同一張橫向大表格，內容多也不會跑版
+                filteredResults.forEach(rowData => {
+                    const table = document.createElement('table');
+                    table.className = 'result-card';
+
+                    const tbody = table.createTBody();
+                    columns.forEach(colName => {
+                        const value = rowData[colName];
+                        const isEmpty = value === undefined || value === null || String(value).trim() === '';
+                        // 空白欄位（例如沒填的備註）不顯示，卡片才不會被一堆空列拉長
+                        if (isEmpty) {
+                            return;
+                        }
+
+                        const row = tbody.insertRow();
+                        const th = document.createElement('th');
+                        th.textContent = colName;
+                        row.appendChild(th);
+
+                        const td = row.insertCell();
+                        td.textContent = value;
+                    });
+
+                    resultsContainerDiv.appendChild(table);
+                });
+            } else {
+                resultsContainerDiv.innerHTML = '<p class="no-results">查無相關資料。</p>';
+            }
+        }
+
+        searchButton.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                performSearch();
+            }
+        });
+
+        loadData();
+    </script>
+</body>
+</html>
