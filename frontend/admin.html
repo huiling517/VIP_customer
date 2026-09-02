@@ -169,7 +169,7 @@
         <div class="template-row">
             <button id="templateButton" type="button">下載 Excel 格式範本</button>
             <p class="preview-note">
-                不確定欄位怎麼排可以先下載這份範本參考，依樣填寫即可；範本裡的欄位名稱（姓名、稱謂、單位、職稱、電話、備註1~備註5）
+                不確定欄位怎麼排可以先下載這份範本參考，依樣填寫即可；範本裡的欄位名稱（序號、公司名稱、姓名、身分證字號、出生年月日、電話、地址、病歷號、備註1~備註5）
                 只是建議，您可以自由新增、刪除或改名欄位，查詢頁面會自動配合您實際填的欄位運作。
             </p>
         </div>
@@ -208,8 +208,8 @@
 
         // 下載 Excel 格式範本
         templateButton.addEventListener('click', () => {
-            const templateHeaders = ['姓名', '稱謂', '單位', '職稱', '電話', '備註1', '備註2', '備註3', '備註4', '備註5'];
-            const templateExampleRow = ['王小明', '先生', '大興長照機構', '執行長', '0912-345-678', '', '', '', '', '範例資料，請填寫後刪除本列'];
+            const templateHeaders = ['序號', '公司名稱', '姓名', '身分證字號', '出生年月日', '電話', '地址', '病歷號', '備註1', '備註2', '備註3', '備註4', '備註5'];
+            const templateExampleRow = ['1', '大興長照機構', '王小明', 'A123456789', '1950-01-01', '0912-345-678', '台中市...', '000123', '', '', '', '', '範例資料，請填寫後刪除本列'];
 
             const worksheetData = [templateHeaders, templateExampleRow];
             const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
