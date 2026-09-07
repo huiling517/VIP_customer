@@ -15,10 +15,9 @@ jobs:
     steps:
       - name: 呼叫後端 API（會連帶查詢 Supabase）
         run: |
-          echo "呼叫 $KEEPALIVE_URL"
-          # --max-time 90：Render 免費方案如果剛好休眠中，喚醒可能要 30~60 秒，這裡多留一點時間
-          # -f：如果後端回傳錯誤狀態碼（例如 500），這個步驟會失敗，方便在 Actions 頁面看到警訊
-          curl -f --max-time 90 "$KEEPALIVE_URL"
-        env:
-          KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
- 
+             CLEAN_URL=$(printf '%s' "$KEEPALIVE_URL" | tr -d '[:space:]')
+             echo "網址長度：${#CLEAN_URL}"
+             echo "呼叫：$CLEAN_URL"
+             curl -f --max-time 90 "$CLEAN_URL"
+           env:
+             KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
