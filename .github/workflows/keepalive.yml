@@ -1,0 +1,23 @@
+name: Daily Keepalive
+
+# 這個工作流程不會部署任何東西，純粹「每天打一次 API」，
+# 目的是讓 Supabase 資料庫持續有 API 呼叫紀錄，避免 7 天無活動被自動暫停。
+# 完全在 GitHub 自己的雲端執行，不需要在任何電腦上安裝東西。
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 每天 UTC 00:00 執行一次（約台灣時間早上 8 點）
+  workflow_dispatch: {}    # 這行讓您可以在 GitHub 網頁上手動按「Run workflow」測試
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 呼叫後端 API（會連帶查詢 Supabase）
+        run: |
+          echo "呼叫 $KEEPALIVE_URL"
+          # --max-time 90：Render 免費方案如果剛好休眠中，喚醒可能要 30~60 秒，這裡多留一點時間
+          # -f：如果後端回傳錯誤狀態碼（例如 500），這個步驟會失敗，方便在 Actions 頁面看到警訊
+          curl -f --max-time 90 "$KEEPALIVE_URL"
+        env:
+          KEEPALIVE_URL: ${{ secrets.KEEPALIVE_URL }}
